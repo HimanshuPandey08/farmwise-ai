@@ -60,7 +60,7 @@ export default function RegisterPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full rounded-lg border p-3"
+          className="w-full border rounded px-3 py-2 placeholder:text-gray-600"
         />
 
         <input
@@ -70,7 +70,7 @@ export default function RegisterPage() {
           onChange={(e) => setPassword(e.target.value)}
           minLength={8}
           required
-          className="w-full rounded-lg border p-3"
+          className="w-full border rounded px-3 py-2 placeholder:text-gray-600"
         />
 
         <button

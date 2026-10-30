@@ -1,35 +1,13 @@
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import ProtectedPage from "@/components/ProtectedPage";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import Navbar from "@/components/Navbar";
+import { useLanguage } from "@/context/LanguageContext";
 
 const STORAGE_KEY = "farmwise-current-report";
-
-function SiteHeader() {
-  return (
-    <header className="border-b border-gray-100 bg-white">
-      <div className="mx-auto flex min-h-[66px] max-w-5xl items-center justify-between gap-4 px-5 sm:px-8">
-        <Link href="/" className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-green-900 text-2xl text-lime-400">
-            🌱
-          </span>
-          <span className="text-base font-bold text-gray-950">
-            FarmWise AI
-          </span>
-        </Link>
-
-        <nav className="flex items-center gap-4 text-xs font-medium text-gray-800 sm:gap-9 sm:text-sm">
-          <Link href="/" className="hover:text-green-700">Home</Link>
-          <Link href="/#about" className="hover:text-green-700">About</Link>
-          <Link href="/#contact" className="hover:text-green-700">Contact</Link>
-        </nav>
-      </div>
-    </header>
-  );
-}
 
 function PlantIcon({ className = "h-5 w-5" }) {
   return (
@@ -53,7 +31,7 @@ function PlantIcon({ className = "h-5 w-5" }) {
 function PageLoader({ message = "Preparing your personalized crop-care guidance..." }) {
   return (
     <main className="min-h-screen bg-white">
-      <SiteHeader />
+      <Navbar />
 
       <section
         role="status"
@@ -108,9 +86,11 @@ function PanelHeading({ icon, title, color }) {
   );
 }
 
-function AdvicePanel({ type, items }) {
+function AdvicePanel({ type, items, t }) {
   const isPositive = type === "positive";
-  const title = isPositive ? "What to do" : "What to avoid";
+  const title = isPositive
+    ? (t ? t("actionPlan.whatToDo", "What to do") : "What to do")
+    : (t ? t("actionPlan.whatToAvoid", "What to avoid") : "What to avoid");
   const Icon = isPositive ? "✓" : "×";
 
   const colors = isPositive
@@ -140,8 +120,8 @@ function AdvicePanel({ type, items }) {
       ) : (
         <p className="mt-4 pl-1 text-sm leading-6 text-gray-700">
           {isPositive
-            ? "No specific actions were returned. Review the crop symptoms with an agricultural expert."
-            : "No specific cautions were returned. Avoid unverified treatments and follow approved product labels."}
+            ? (t ? t("actionPlan.noActions", "No specific actions were returned. Review the crop symptoms with an agricultural expert.") : "No specific actions were returned. Review the crop symptoms with an agricultural expert.")
+            : (t ? t("actionPlan.noCautions", "No specific cautions were returned. Avoid unverified treatments and follow approved product labels.") : "No specific cautions were returned. Avoid unverified treatments and follow approved product labels.")}
         </p>
       )}
     </section>
@@ -163,6 +143,7 @@ function SummaryCard({ title, value, detail, valueClass = "text-gray-700" }) {
 function ActionPlanContent() {
   const params = useParams();
   const reportId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const { t, language } = useLanguage();
 
   const [sessionReport] = useState(() => {
     if (typeof window === "undefined") return null;
@@ -212,8 +193,9 @@ function ActionPlanContent() {
       setError("");
 
       try {
+        const langParam = encodeURIComponent(language || "en");
         const getResponse = await fetch(
-          `/api/recommendations?diagnosisId=${encodeURIComponent(resolvedDiagnosisId)}`
+          `/api/recommendations?diagnosisId=${encodeURIComponent(resolvedDiagnosisId)}&lang=${langParam}`
         );
 
         if (getResponse.ok) {
@@ -236,6 +218,7 @@ function ActionPlanContent() {
           body: JSON.stringify({
             diagnosisId: resolvedDiagnosisId,
             regenerate: false,
+            lang: language || "en",
           }),
         });
 
@@ -274,7 +257,7 @@ function ActionPlanContent() {
     return () => {
       ignore = true;
     };
-  }, [resolvedDiagnosisId, reloadKey]);
+  }, [resolvedDiagnosisId, language, reloadKey]);
 
   const handleRetry = useCallback(() => {
     if (!resolvedDiagnosisId || loading || regenerating) return;
@@ -296,6 +279,7 @@ function ActionPlanContent() {
         body: JSON.stringify({
           diagnosisId: resolvedDiagnosisId,
           regenerate: true,
+          lang: language || "en",
         }),
       });
 
@@ -319,12 +303,12 @@ function ActionPlanContent() {
     } finally {
       setRegenerating(false);
     }
-  }, [resolvedDiagnosisId, regenerating, loading]);
+  }, [resolvedDiagnosisId, regenerating, loading, language]);
 
   if (!resolvedDiagnosisId) {
     return (
       <main className="min-h-screen bg-white">
-        <SiteHeader />
+        <Navbar />
         <div className="mx-auto max-w-2xl px-5 py-16 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-800">
             <PlantIcon className="h-9 w-9" />
@@ -356,11 +340,11 @@ function ActionPlanContent() {
   if (error || !consultation) {
     return (
       <main className="min-h-screen bg-white">
-        <SiteHeader />
+        <Navbar />
         <div className="mx-auto max-w-2xl px-5 py-12">
           <div className="rounded-2xl border border-red-200 bg-white p-7 shadow-sm">
             <h1 className="text-2xl font-extrabold text-gray-950">
-              Unable to load action plan
+              {t("actionPlan.title", "Unable to load action plan")}
             </h1>
             <p role="alert" className="mt-3 text-sm leading-6 text-red-700">
               {error || "Could not retrieve recommendations."}
@@ -373,21 +357,21 @@ function ActionPlanContent() {
                 disabled={loading || regenerating}
                 className="rounded-lg bg-green-800 px-5 py-3 text-sm font-bold text-white hover:bg-green-900 disabled:opacity-50"
               >
-                Retry
+                {t("common.retry", "Retry")}
               </button>
 
               <Link
                 href={`/report/${encodeURIComponent(reportId || resolvedDiagnosisId)}`}
                 className="rounded-lg border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
-                Back to report
+                {t("common.back", "Back to report")}
               </Link>
 
               <Link
                 href="/diagnose"
                 className="rounded-lg border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
-                New diagnosis
+                {t("report.newDiagnosis", "New diagnosis")}
               </Link>
             </div>
           </div>
@@ -424,7 +408,7 @@ function ActionPlanContent() {
 
   return (
     <main className="min-h-screen bg-white text-gray-900">
-      <SiteHeader />
+      <Navbar />
 
       <div className="mx-auto max-w-5xl px-5 py-7 sm:px-8 sm:py-9">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -432,7 +416,7 @@ function ActionPlanContent() {
             href={`/report/${encodeURIComponent(reportId || resolvedDiagnosisId)}`}
             className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 transition hover:text-green-800"
           >
-            <span aria-hidden="true">←</span> Back
+            <span aria-hidden="true">←</span> {t("common.back", "Back")}
           </Link>
 
           <div className="flex flex-wrap gap-2">
@@ -442,22 +426,24 @@ function ActionPlanContent() {
               disabled={regenerating || loading}
               className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
             >
-              {regenerating ? "Refreshing..." : "↻ Refresh plan"}
+              {regenerating
+                ? t("actionPlan.refreshing", "Refreshing...")
+                : `↻ ${t("actionPlan.refreshPlan", "Refresh plan")}`}
             </button>
           </div>
         </div>
 
         <div className="mt-7">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-800">
-            Personalized crop care
+            {t("actionPlan.subtitle", "Personalized crop care")}
           </p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
-            Your Action Plan
+            {t("actionPlan.title", "Weather-Aware Action Plan")}
           </h1>
 
           <p className="mt-2 text-sm leading-6 text-gray-600">
             {cropInfo?.cropName ? `${cropInfo.cropName} · ` : ""}
-            {diagnosis?.diseaseName || "Crop treatment guidance"}
+            {diagnosis?.diseaseName || t("actionPlan.guidanceSubtitle", "Crop treatment guidance")}
             {cropInfo?.location ? ` · ${cropInfo.location}` : ""}
           </p>
         </div>
@@ -470,29 +456,29 @@ function ActionPlanContent() {
 
         {/* Recommended actions */}
         <div className="mt-6 space-y-5">
-          <AdvicePanel type="positive" items={actions} />
-          <AdvicePanel type="negative" items={cautions} />
+          <AdvicePanel type="positive" items={actions} t={t} />
+          <AdvicePanel type="negative" items={cautions} t={t} />
         </div>
 
         {/* Cost, risk and follow-up */}
         <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5">
           <SummaryCard
-            title="Estimated Cost"
+            title={t("actionPlan.estimatedCost", "Estimated Cost")}
             value={costValue}
-            detail={cost?.basis || "Actual cost may vary by location"}
+            detail={cost?.basis || t("actionPlan.costVaries", "Actual cost may vary by location")}
             valueClass="text-gray-700"
           />
 
           <SummaryCard
-            title="Risk if untreated"
+            title={t("actionPlan.riskIfUntreated", "Risk if untreated")}
             value={risk}
             valueClass="text-amber-700"
           />
 
           <SummaryCard
-            title="Check again"
-            value={`In ${checkDays} days`}
-            detail="Review crop symptoms"
+            title={t("actionPlan.checkAgain", "Check again")}
+            value={t("actionPlan.inDays", `In ${checkDays} days`, { days: checkDays })}
+            detail={t("actionPlan.reviewSymptoms", "Review crop symptoms")}
             valueClass="text-gray-700"
           />
         </div>
@@ -503,12 +489,12 @@ function ActionPlanContent() {
             <span className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-400 text-xs text-gray-600">
               i
             </span>
-            Why this advice?
+            {t("actionPlan.whyThisAdvice", "Why this advice?")}
           </h2>
 
           <p className="mt-3 text-sm leading-6 text-gray-700 sm:pl-9">
             {summary ||
-              "Recommendations consider the crop diagnosis and available agricultural guidance."}
+              t("actionPlan.defaultSummary", "Recommendations consider the crop diagnosis and available agricultural guidance.")}
           </p>
 
           {Array.isArray(reasoning) && reasoning.length > 0 && (
@@ -527,11 +513,12 @@ function ActionPlanContent() {
 
           {cropInfo && (
             <p className="mt-4 text-xs leading-5 text-gray-500 sm:pl-9">
-              Farm details considered: {cropInfo.cropName || "Crop not specified"}
+              {t("actionPlan.farmDetailsConsidered", "Farm details considered:")}{" "}
+              {cropInfo.cropName || t("actionPlan.cropNotSpecified", "Crop not specified")}
               {cropInfo.cropAge != null
-                ? `, ${cropInfo.cropAge} ${cropInfo.ageUnit || "days"} old`
+                ? `, ${cropInfo.cropAge} ${cropInfo.ageUnit || "days"}`
                 : ""}
-              {cropInfo.soilType ? `, ${cropInfo.soilType} soil` : ""}
+              {cropInfo.soilType ? `, ${cropInfo.soilType}` : ""}
               {cropInfo.location ? `, ${cropInfo.location}` : ""}.
             </p>
           )}
@@ -541,15 +528,15 @@ function ActionPlanContent() {
         {weather?.available && (
           <section className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-5 sm:p-6">
             <h2 className="text-base font-extrabold text-blue-950">
-              Local Weather & Spray Conditions
+              {t("actionPlan.localWeatherTitle", "Local Weather & Spray Conditions")}
             </h2>
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                ["Temperature", `${weather.temperatureC ?? "N/A"}°C`],
-                ["Humidity", `${weather.humidityPercent ?? "N/A"}%`],
-                ["24h rain", `${weather.precipitationForecastMm ?? 0} mm`],
-                ["Wind speed", `${weather.windSpeedKmh ?? "N/A"} km/h`],
+                [t("actionPlan.temperature", "Temperature"), `${weather.temperatureC ?? "N/A"}°C`],
+                [t("actionPlan.humidity", "Humidity"), `${weather.humidityPercent ?? "N/A"}%`],
+                [t("actionPlan.precipitation24h", "24h rain"), `${weather.precipitationForecastMm ?? 0} mm`],
+                [t("actionPlan.windSpeed", "Wind speed"), `${weather.windSpeedKmh ?? "N/A"} km/h`],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl border border-blue-100 bg-white p-3">
                   <p className="text-xs text-gray-500">{label}</p>
@@ -560,7 +547,7 @@ function ActionPlanContent() {
 
             {weather.sprayAdvisory && (
               <p className="mt-4 rounded-lg border border-blue-100 bg-white p-3 text-sm leading-6 text-blue-900">
-                <strong>Weather note:</strong> {weather.sprayAdvisory}
+                <strong>{t("actionPlan.weatherNote", "Weather note:")}</strong> {weather.sprayAdvisory}
               </p>
             )}
           </section>
@@ -569,7 +556,7 @@ function ActionPlanContent() {
         {/* Agricultural references */}
         <section className="mt-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="text-base font-extrabold text-gray-950">
-            Agricultural Sources
+            {t("actionPlan.sourcesTitle", "Agricultural Sources")}
           </h2>
 
           {sources.length > 0 ? (
@@ -587,7 +574,7 @@ function ActionPlanContent() {
                     </a>
                   ) : (
                     <p className="text-sm font-semibold text-gray-800">
-                      {source.title || "Agricultural reference"}
+                      {source.title || t("actionPlan.agriReference", "Agricultural reference")}
                     </p>
                   )}
 
@@ -599,9 +586,7 @@ function ActionPlanContent() {
             </ul>
           ) : (
             <p className="mt-2 text-sm leading-6 text-gray-600">
-              No specific institutional advisory links were returned for this
-              consultation. Verify treatment decisions against trusted local
-              agricultural guidance.
+              {t("actionPlan.noSources", "No specific institutional advisory links were returned for this consultation. Verify treatment decisions against trusted local agricultural guidance.")}
             </p>
           )}
         </section>
@@ -612,21 +597,21 @@ function ActionPlanContent() {
             href={`/report/${encodeURIComponent(reportId || resolvedDiagnosisId)}`}
             className="inline-flex min-h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
-            ← Back to report
+            ← {t("actionPlan.backToReport", "Back to report")}
           </Link>
 
           <Link
             href="/diagnose"
             className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#8bb96e] px-6 py-3 text-sm font-bold text-green-950 transition hover:bg-[#79a95a]"
           >
-            Analyze another crop →
+            {t("report.newDiagnosis", "Analyze another crop")} →
           </Link>
         </div>
       </div>
 
       <footer className="mt-8 border-t border-gray-100 bg-white">
         <div className="mx-auto max-w-5xl px-5 py-5 text-center text-xs text-gray-500 sm:px-8">
-          FarmWise AI · Helping you make informed crop-care decisions.
+          {t("actionPlan.footerText", "FarmWise AI · Helping you make informed crop-care decisions.")}
         </div>
       </footer>
     </main>

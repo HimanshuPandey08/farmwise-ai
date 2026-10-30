@@ -73,11 +73,18 @@ export async function POST(request) {
     // 5. Convert image to a Buffer
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // 6. Upload image to Cloudinary
+    // 6. Determine target folder based on uploadType
+    const uploadType = formData.get("uploadType") || "diagnosis";
+    const targetFolder =
+      uploadType === "listing" || uploadType === "marketplace"
+        ? "farmwise/marketplace-listings"
+        : "farmwise/crop-images";
+
+    // 7. Upload image to Cloudinary
     const result = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
-          folder: "farmwise/crop-images",
+          folder: targetFolder,
           resource_type: "image",
         },
         (error, uploadResult) => {
@@ -92,9 +99,15 @@ export async function POST(request) {
       stream.end(buffer);
     });
 
-    // 7. Return the uploaded image URL
+    const secureUrl = result.secure_url;
+    const thumbnailUrl = secureUrl.includes("/upload/")
+      ? secureUrl.replace("/upload/", "/upload/c_fill,w_400,h_300,q_auto,f_auto/")
+      : secureUrl;
+
+    // 8. Return uploaded image URLs
     return NextResponse.json({
-      secureUrl: result.secure_url,
+      secureUrl,
+      thumbnailUrl,
       publicId: result.public_id,
     });
   } catch (error) {

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
+import Navbar from "@/components/Navbar";
+import { useLanguage } from "@/context/LanguageContext";
 
 const HERO_IMAGE =
   "https://res.cloudinary.com/bvtkcr15/image/upload/ff8df2cf704fcef8af5f8a425b4b169d1a250f8d.png";
@@ -93,61 +95,48 @@ function CropThumbnail({ record, cropName }) {
   );
 }
 
-function SiteHeader() {
+function MarketplaceBanner() {
+  const { t } = useLanguage();
+
   return (
-    <header className="relative z-20 bg-white">
-      <div className="mx-auto flex min-h-[66px] max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-md bg-green-900 text-2xl text-lime-400">
-            🌱
+    <section className="bg-gradient-to-r from-emerald-950 via-green-900 to-amber-950 text-white border-y border-emerald-800">
+      <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-4 px-5 py-5 sm:flex-row sm:items-center sm:px-8">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-2xl text-gray-950 shadow-sm">
+            🌾
           </span>
-          <span className="text-lg font-bold tracking-tight text-gray-950">
-            FarmWise AI
-          </span>
-        </Link>
+          <div>
+            <h2 className="text-base font-bold text-white sm:text-lg">
+              {t("hero.marketplaceBannerTitle", "FarmWise Produce Marketplace")}
+            </h2>
+            <p className="text-xs text-amber-200/90 sm:text-sm">
+              {t("hero.marketplaceBannerDesc", "Discover harvested grains, pulses, fruits and vegetables directly from growers across India. Direct farmer-to-buyer connections.")}
+            </p>
+          </div>
+        </div>
 
-        <nav className="flex items-center gap-4 text-xs font-medium text-gray-800 sm:gap-9 sm:text-sm">
-          <Link href="/" className="transition hover:text-green-700">
-            Home
-          </Link>
-
-
-          <Link href="/register" className="transition hover:text-green-700">
-            Register
-          </Link>
-          
-          <Link href="/login" className="transition hover:text-green-700">
-            Login
-          </Link>
-          {/* New History navigation link */}
+        <div className="flex shrink-0 items-center gap-3">
           <Link
-            href="/recent-history"
-            className="transition hover:text-green-700"
+            href="/marketplace"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-4 py-2 text-xs font-bold text-gray-950 shadow-xs transition hover:bg-amber-300"
           >
-            History
+            {t("hero.exploreMarketplace", "Explore Marketplace")} <span aria-hidden="true">→</span>
           </Link>
-
           <Link
-            href="/community-intelligence"
-            className="transition hover:text-green-700"
+            href="/marketplace/sell"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/40 bg-white/10 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-white/20"
           >
-            Community
+            {t("hero.sellProduce", "Sell Produce")} <span>➕</span>
           </Link>
-
-          <a href="#about" className="transition hover:text-green-700">
-            About
-          </a>
-
-          <a href="#contact" className="transition hover:text-green-700">
-            Contact
-          </a>
-        </nav>
+        </div>
       </div>
-    </header>
+    </section>
   );
 }
 
 function CommunityBanner() {
+  const { t } = useLanguage();
+
   return (
     <section className="bg-gradient-to-r from-emerald-900 to-green-950 text-white border-y border-emerald-800">
       <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-4 px-5 py-5 sm:flex-row sm:items-center sm:px-8">
@@ -157,10 +146,10 @@ function CommunityBanner() {
           </span>
           <div>
             <h2 className="text-base font-bold text-white sm:text-lg">
-              Community Disease Intelligence & Early Warnings
+              {t("hero.communityBannerTitle", "Community Disease Intelligence & Early Warnings")}
             </h2>
             <p className="text-xs text-lime-200/90 sm:text-sm">
-              Track emerging crop disease patterns and location-based advisories across farming communities.
+              {t("hero.communityBannerDesc", "Track emerging crop disease patterns and location-based advisories across farming communities.")}
             </p>
           </div>
         </div>
@@ -169,7 +158,7 @@ function CommunityBanner() {
           href="/community-intelligence"
           className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-lime-400 px-4 py-2.5 text-xs font-bold text-gray-950 shadow-sm transition hover:bg-lime-300"
         >
-          View Live Intelligence <span aria-hidden="true">→</span>
+          {t("hero.viewLiveCommunity", "View Live Intelligence")} <span aria-hidden="true">→</span>
         </Link>
       </div>
     </section>
@@ -177,26 +166,28 @@ function CommunityBanner() {
 }
 
 function FeatureStrip() {
+  const { t } = useLanguage();
+
   const features = [
     {
       icon: "🌿",
       title: "AI-Powered",
-      subtitle: "Disease Detection",
+      subtitle: t("hero.aiDetection", "Disease Detection"),
     },
     {
       icon: "▣",
       title: "Personalised",
-      subtitle: "Action Plan",
+      subtitle: t("hero.actionPlanTitle", "Action Plan"),
     },
     {
       icon: "▤",
       title: "Trusted",
-      subtitle: "Agricultural Knowledge",
+      subtitle: t("hero.trustedKnowledge", "Agricultural Knowledge"),
     },
     {
       icon: "🌱",
       title: "Better Yield",
-      subtitle: "& Healthier Crop",
+      subtitle: t("hero.betterYield", "& Healthier Crop"),
     },
   ];
 
@@ -366,6 +357,7 @@ function RecentAnalysis({ diagnoses, loading, error, onRetry }) {
 }
 
 export default function HomePage() {
+  const { t } = useLanguage();
   const [diagnoses, setDiagnoses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -448,7 +440,7 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-white text-gray-900">
-      <SiteHeader />
+      <Navbar />
 
       {/* Hero */}
       <section
@@ -466,31 +458,41 @@ export default function HomePage() {
 
         <div className="mx-auto w-full max-w-7xl px-6 py-12 sm:px-10 md:px-14 lg:px-20">
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-lime-200 sm:text-sm">
-            Smarter farming starts here
+            {t("hero.tagline", "Smarter farming starts here")}
           </p>
 
           <h1 className="text-4xl font-extrabold tracking-tight text-white drop-shadow-sm sm:text-5xl lg:text-6xl">
-            FarmWise AI
+            {t("hero.title", "FarmWise AI")}
           </h1>
 
           <p className="mt-2 text-base font-semibold text-white sm:text-lg">
-            AI powered decision assistance
+            {t("hero.subtitle", "AI-Powered Agricultural Intelligence & Direct Produce Marketplace")}
           </p>
 
           <p className="mt-3 text-xs text-white/90 sm:text-sm">
-            Detect, Understand, Decide, Act
+            {t("hero.description", "Diagnose crop diseases instantly, receive localized spray advisories, and connect directly with bulk buyers across India.")}
           </p>
 
-          <Link
-            href="/diagnose"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-lime-400 px-5 py-3 text-sm font-bold text-gray-950 shadow-md transition hover:bg-lime-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-green-900"
-          >
-            Analyze My Crop <span aria-hidden="true">→</span>
-          </Link>
+          <div className="mt-6 flex flex-wrap items-center gap-4">
+            <Link
+              href="/diagnose"
+              className="inline-flex items-center gap-2 rounded-lg bg-lime-400 px-5 py-3 text-sm font-bold text-gray-950 shadow-md transition hover:bg-lime-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-green-900"
+            >
+              {t("hero.ctaDiagnose", "Analyze My Crop")} <span aria-hidden="true">→</span>
+            </Link>
+
+            <Link
+              href="/marketplace"
+              className="inline-flex items-center gap-2 rounded-lg border border-lime-300/60 bg-black/40 px-5 py-3 text-sm font-bold text-white shadow-md backdrop-blur-xs transition hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-white"
+            >
+              {t("hero.ctaMarketplace", "Explore Produce Marketplace")} <span aria-hidden="true">🌾</span>
+            </Link>
+          </div>
         </div>
       </section>
 
       <FeatureStrip />
+      <MarketplaceBanner />
       <CommunityBanner />
 
       <RecentAnalysis

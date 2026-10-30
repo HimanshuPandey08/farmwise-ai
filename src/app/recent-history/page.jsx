@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import LogoutButton from "@/components/LogoutButton";
+import Navbar from "@/components/Navbar";
+import { useLanguage } from "@/context/LanguageContext";
 
 function formatDate(dateValue) {
   if (!dateValue) return "Date unavailable";
@@ -91,46 +92,8 @@ function CropThumbnail({ record, cropName }) {
   );
 }
 
-function SiteHeader() {
-  return (
-    <header className="border-b border-gray-200 bg-white sticky top-0 z-20">
-      <div className="mx-auto flex min-h-[66px] max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-green-900 text-2xl text-lime-400">
-            🌱
-          </span>
-          <span className="text-base font-bold tracking-tight text-gray-950">
-            FarmWise AI
-          </span>
-        </Link>
-
-        <nav className="flex items-center gap-4 text-xs font-medium text-gray-800 sm:gap-8 sm:text-sm">
-          <Link href="/" className="transition hover:text-green-700">
-            Home
-          </Link>
-          <Link href="/diagnose" className="transition hover:text-green-700">
-            Diagnose
-          </Link>
-          <Link
-            href="/recent-history"
-            className="font-semibold text-green-700 underline underline-offset-4"
-          >
-            History
-          </Link>
-          <Link
-            href="/community-intelligence"
-            className="transition hover:text-green-700"
-          >
-            Community
-          </Link>
-          <LogoutButton className="text-xs font-semibold text-gray-600 hover:text-red-700" />
-        </nav>
-      </div>
-    </header>
-  );
-}
-
 export default function RecentHistoryPage() {
+  const { t } = useLanguage();
   const [diagnoses, setDiagnoses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -214,17 +177,17 @@ export default function RecentHistoryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <SiteHeader />
+      <Navbar />
 
       <main className="flex-1 mx-auto w-full max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
         {/* Page Title & Action Bar */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-6">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-              Diagnosis History
+              {t("history.title", "Recent Crop Diagnoses")}
             </h1>
             <p className="mt-1 text-sm text-gray-600">
-              Review past visual health scans, disease screenings, and agronomic action plans.
+              {t("history.subtitle", "Review your past crop assessments, detected diseases, and action plans.")}
             </p>
           </div>
 
@@ -234,7 +197,7 @@ export default function RecentHistoryPage() {
               className="inline-flex items-center gap-2 rounded-xl bg-green-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
             >
               <span>+</span>
-              <span>New Diagnosis</span>
+              <span>{t("history.startDiagnosisBtn", "New Diagnosis")}</span>
             </Link>
           </div>
         </div>
@@ -318,16 +281,16 @@ export default function RecentHistoryPage() {
                 🌱
               </div>
               <h2 className="text-xl font-bold text-gray-900">
-                No Diagnoses Yet
+                {t("history.noHistoryFound", "No crop diagnoses found")}
               </h2>
               <p className="mt-2 text-sm text-gray-600 leading-relaxed">
-                You haven&apos;t analyzed any crops yet. Take a photograph of a plant or upload an image to receive instant diagnosis and treatment guidance.
+                {t("history.noHistoryDesc", "Upload your first crop leaf photo to receive instant AI disease detection and localized care advice.")}
               </p>
               <Link
                 href="/diagnose"
                 className="mt-6 inline-flex rounded-xl bg-green-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-800"
               >
-                Start First Diagnosis →
+                {t("history.startDiagnosisBtn", "Start New Diagnosis")} →
               </Link>
             </div>
           ) : (
@@ -346,7 +309,7 @@ export default function RecentHistoryPage() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by crop, disease, or location..."
+                    placeholder={t("history.searchPlaceholder", "Search by crop name or disease...")}
                     className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-green-600 focus:outline-none focus:ring-1 focus:ring-green-600"
                   />
                   {searchQuery && (
@@ -361,7 +324,7 @@ export default function RecentHistoryPage() {
                 </div>
 
                 <p className="text-xs font-medium text-gray-500">
-                  Showing {filteredDiagnoses.length} of {diagnoses.length} record{diagnoses.length === 1 ? "" : "s"}
+                  {filteredDiagnoses.length} / {diagnoses.length}
                 </p>
               </div>
 
@@ -369,14 +332,14 @@ export default function RecentHistoryPage() {
                 /* No search results */
                 <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
                   <p className="text-sm font-medium text-gray-700">
-                    No diagnosis records match &ldquo;{searchQuery}&rdquo;.
+                    {t("marketplace.noListingsFound", "No crop diagnoses match your search.")}
                   </p>
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
                     className="mt-3 text-xs font-semibold text-green-700 hover:underline"
                   >
-                    Clear search filter
+                    {t("common.resetFilters", "Clear search filter")}
                   </button>
                 </div>
               ) : (
@@ -428,7 +391,7 @@ export default function RecentHistoryPage() {
                             </span>
                             {typeof details.probability === "number" && (
                               <span className="text-xs text-gray-500 font-medium">
-                                ({details.probability}% confidence)
+                                ({details.probability}%)
                               </span>
                             )}
                           </div>
@@ -440,7 +403,7 @@ export default function RecentHistoryPage() {
                             href={`/report/${encodeURIComponent(recordId)}`}
                             className="inline-flex w-full items-center justify-center rounded-lg bg-green-50 px-4 py-2 text-xs font-semibold text-green-800 border border-green-200 transition hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
                           >
-                            View Report →
+                            {t("history.viewReportBtn", "View Report")} →
                           </Link>
                         </div>
                       </article>

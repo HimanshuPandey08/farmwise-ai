@@ -2,43 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import LogoutButton from "@/components/LogoutButton";
-
-function SiteHeader() {
-  return (
-    <header className="border-b border-gray-200 bg-white sticky top-0 z-20">
-      <div className="mx-auto flex min-h-[66px] max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-green-900 text-2xl text-lime-400">
-            🌱
-          </span>
-          <span className="text-base font-bold tracking-tight text-gray-950">
-            FarmWise AI
-          </span>
-        </Link>
-
-        <nav className="flex items-center gap-4 text-xs font-medium text-gray-800 sm:gap-7 sm:text-sm">
-          <Link href="/" className="transition hover:text-green-700">
-            Home
-          </Link>
-          <Link href="/diagnose" className="transition hover:text-green-700">
-            Diagnose
-          </Link>
-          <Link href="/recent-history" className="transition hover:text-green-700">
-            History
-          </Link>
-          <Link
-            href="/community-intelligence"
-            className="font-semibold text-green-700 underline underline-offset-4"
-          >
-            Community
-          </Link>
-          <LogoutButton className="text-xs font-semibold text-gray-600 hover:text-red-700" />
-        </nav>
-      </div>
-    </header>
-  );
-}
+import Navbar from "@/components/Navbar";
+import { useLanguage } from "@/context/LanguageContext";
 
 function StatusBadge({ status }) {
   if (status === "elevated_signal") {
@@ -88,6 +53,7 @@ function EvidenceBadge({ level }) {
 }
 
 export default function CommunityIntelligencePage() {
+  const { t } = useLanguage();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -255,7 +221,7 @@ export default function CommunityIntelligencePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      <SiteHeader />
+      <Navbar />
 
       {/* Page Header */}
       <section className="border-b border-gray-200 bg-white">
@@ -267,21 +233,20 @@ export default function CommunityIntelligencePage() {
                   📡
                 </span>
                 <span className="text-xs font-semibold uppercase tracking-wider text-green-800">
-                  FarmWise Community Network
+                  {t("common.appName", "FarmWise AI")}
                 </span>
               </div>
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-950 sm:text-3xl">
-                Community Disease Intelligence & Early Warnings
+                {t("community.title", "Community Disease Intelligence")}
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-gray-600">
-                Aggregated, privacy-preserving crop disease patterns across farming clusters.
-                Individual farm identities, exact coordinates, and personal records are never disclosed.
+                {t("community.subtitle", "Real-time, privacy-preserving crop disease surveillance across Indian farming communities.")}
               </p>
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200">
-                🛡️ Privacy Safeguards Active
+                🛡️ {t("community.privacyAssurance", "Privacy Safeguards")}
               </span>
             </div>
           </div>
@@ -310,10 +275,14 @@ export default function CommunityIntelligencePage() {
             </div>
 
             <div className="mt-4 space-y-3">
-              {alerts.map((alert) => (
-                <div
-                  key={alert._id}
-                  className={`rounded-xl border p-4 transition ${
+              {alerts.map((alert, index) => {
+                const alertKey = alert._id
+                  ? String(alert._id)
+                  : `alert::${alert.area || ""}::${alert.crop || ""}::${alert.disease || ""}::${alert.signalKey || index}`;
+                return (
+                  <div
+                    key={alertKey}
+                    className={`rounded-xl border p-4 transition ${
                     alert.isRead
                       ? "border-amber-200 bg-white/70 opacity-90"
                       : "border-amber-300 bg-white shadow-sm"
@@ -384,8 +353,9 @@ export default function CommunityIntelligencePage() {
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
+          </div>
           </section>
         )}
 
@@ -412,7 +382,7 @@ export default function CommunityIntelligencePage() {
                 >
                   <option value="">All Regions / Districts</option>
                   {filters.areas.map((a) => (
-                    <option key={a} value={a}>
+                    <option key={`area-opt-${a}`} value={a}>
                       {a}
                     </option>
                   ))}
@@ -438,7 +408,7 @@ export default function CommunityIntelligencePage() {
                 >
                   <option value="">All Crops</option>
                   {filters.crops.map((c) => (
-                    <option key={c} value={c}>
+                    <option key={`crop-opt-${c}`} value={c}>
                       {c}
                     </option>
                   ))}
@@ -463,7 +433,7 @@ export default function CommunityIntelligencePage() {
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-green-600 focus:outline-none focus:ring-1 focus:ring-green-600"
                 >
                   {filters.timeRanges.map((d) => (
-                    <option key={d} value={d}>
+                    <option key={`days-opt-${d}`} value={d}>
                       Last {d} Days {d === 14 ? "(Default)" : ""}
                     </option>
                   ))}
@@ -642,11 +612,16 @@ export default function CommunityIntelligencePage() {
                 </div>
               ) : (
                 <div className="grid gap-5 md:grid-cols-2">
-                  {signals.map((s) => (
-                    <div
-                      key={s.id}
-                      className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md"
-                    >
+                  {signals.map((s) => {
+                    const signalKey =
+                      s.id && !s.id.startsWith("UHJheWFncmFqOjpN")
+                        ? s.id
+                        : `signal::${s.area}::${s.crop}::${s.disease}::${s.timeWindowDays || selectedDays}`;
+                    return (
+                      <div
+                        key={signalKey}
+                        className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+                      >
                       <div>
                         {/* Header with badges */}
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -726,7 +701,8 @@ export default function CommunityIntelligencePage() {
                         <span className="italic">Non-prescriptive community intelligence</span>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
               )}
             </section>
@@ -752,7 +728,7 @@ export default function CommunityIntelligencePage() {
                       const maxCount = summary.topDiseases[0]?.count || 1;
                       const percentage = Math.round((d.count / maxCount) * 100);
                       return (
-                        <div key={d.disease}>
+                        <div key={`disease-summary-${d.disease}`}>
                           <div className="flex items-center justify-between text-xs mb-1">
                             <span className="font-semibold text-gray-900">{d.disease}</span>
                             <span className="font-bold text-gray-600">
@@ -791,7 +767,7 @@ export default function CommunityIntelligencePage() {
                       const maxCount = summary.cropDistribution[0]?.count || 1;
                       const percentage = Math.round((c.count / maxCount) * 100);
                       return (
-                        <div key={c.crop}>
+                        <div key={`crop-summary-${c.crop}`}>
                           <div className="flex items-center justify-between text-xs mb-1">
                             <span className="font-semibold text-gray-900">{c.crop}</span>
                             <span className="font-bold text-gray-600">

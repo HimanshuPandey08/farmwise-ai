@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { translateDiagnosisWithGemini } from "@/lib/gemini";
 
 export async function POST(request) {
   try {
@@ -95,6 +96,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const lang = searchParams.get("lang") || request.cookies.get("farmwise_lang")?.value || "en";
 
     if (id) {
       let query;
@@ -116,10 +118,54 @@ export async function GET(request) {
         );
       }
 
+      let localized = null;
+
+      if (lang && lang !== "en") {
+        if (singleDiagnosis.translations?.[lang]) {
+          localized = singleDiagnosis.translations[lang];
+        } else {
+          try {
+            const primaryDisease =
+              singleDiagnosis.diagnosis?.diseases?.[0]?.name || "Unspecified condition";
+            const otherDiseases = (singleDiagnosis.diagnosis?.diseases || [])
+              .slice(1, 4)
+              .map((d) => d.name);
+            const defaultDesc = `The analysis returned a prediction of ${primaryDisease}. Review the field symptoms before choosing a treatment.`;
+
+            const tr = await translateDiagnosisWithGemini({
+              cropName: singleDiagnosis.cropName,
+              diseaseName: primaryDisease,
+              otherDiseases,
+              description: defaultDesc,
+              targetLanguage: lang,
+            });
+
+            await db.collection("diagnoses").updateOne(
+              { _id: singleDiagnosis._id },
+              {
+                $set: {
+                  [`translations.${lang}`]: {
+                    ...tr,
+                    translatedAt: new Date(),
+                  },
+                  updatedAt: new Date(),
+                },
+              }
+            );
+
+            localized = tr;
+          } catch (trErr) {
+            console.warn(`Diagnosis translation to ${lang} failed:`, trErr.message);
+          }
+        }
+      }
+
       return NextResponse.json({
         diagnosis: {
           ...singleDiagnosis,
           _id: singleDiagnosis._id.toString(),
+          localized: localized || null,
+          language: lang,
         },
       });
     }

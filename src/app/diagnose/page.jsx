@@ -1,11 +1,11 @@
-
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import ProtectedPage from "@/components/ProtectedPage";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Navbar from "@/components/Navbar";
+import { useLanguage } from "@/context/LanguageContext";
 
 const SOIL_TYPES = ["Sandy", "Loamy", "Clay", "Silty"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -20,41 +20,6 @@ const INITIAL_FORM = {
   soilType: "",
 };
 
-function SiteHeader() {
-  return (
-    <header className="border-b border-gray-100 bg-white">
-      <div className="mx-auto flex min-h-[68px] max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-green-900 text-2xl text-lime-400">
-            🌱
-          </span>
-          <span className="text-base font-bold tracking-tight text-gray-950">
-            FarmWise AI
-          </span>
-        </Link>
-
-        <nav className="flex items-center gap-4 text-xs font-medium text-gray-800 sm:gap-7 sm:text-sm">
-          <Link href="/" className="transition hover:text-green-700">
-            Home
-          </Link>
-          <Link href="/recent-history" className="transition hover:text-green-700">
-            History
-          </Link>
-          <Link href="/community-intelligence" className="transition hover:text-green-700">
-            Community
-          </Link>
-          <Link href="/#about" className="transition hover:text-green-700">
-            About
-          </Link>
-          <Link href="/#contact" className="transition hover:text-green-700">
-            Contact
-          </Link>
-        </nav>
-      </div>
-    </header>
-  );
-}
-
 function FieldLabel({ htmlFor, children }) {
   return (
     <label
@@ -68,6 +33,7 @@ function FieldLabel({ htmlFor, children }) {
 
 export default function DiagnosePage() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [form, setForm] = useState(INITIAL_FORM);
   const [image, setImage] = useState(null);
@@ -279,33 +245,33 @@ export default function DiagnosePage() {
   return (
     <ProtectedPage>
       <main className="min-h-screen bg-white text-gray-900">
-        <SiteHeader />
+        <Navbar />
 
         <div className="mx-auto max-w-4xl px-5 py-7 sm:px-8 sm:py-9">
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 transition hover:text-green-800"
           >
-            <span aria-hidden="true">←</span> Back
+            <span aria-hidden="true">←</span> {t("common.back", "Back")}
           </Link>
 
           <div className="mx-auto mt-7 max-w-3xl">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-800">
-                Personalized crop care
+                {t("diagnose.cropDetails", "Personalized crop care")}
               </p>
               <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-gray-950">
-                Farm Details
+                {t("diagnose.title", "Analyze Crop Health")}
               </h1>
               <p className="mt-2 text-sm leading-6 text-gray-600">
-                Tell us more about your farm and crop.
+                {t("diagnose.subtitle", "Upload a leaf or crop photograph for instant AI disease identification and action guidance.")}
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="mt-7 space-y-5">
               {/* Crop name */}
               <div>
-                <FieldLabel htmlFor="cropName">Crop</FieldLabel>
+                <FieldLabel htmlFor="cropName">{t("diagnose.cropNameLabel", "Crop")}</FieldLabel>
                 <input
                   id="cropName"
                   name="cropName"
@@ -313,7 +279,7 @@ export default function DiagnosePage() {
                   onChange={handleChange}
                   required
                   maxLength={100}
-                  placeholder="e.g. Tomato"
+                  placeholder={t("diagnose.cropNamePlaceholder", "e.g. Tomato, Wheat, Potato...")}
                   autoComplete="off"
                   className="h-10 w-full rounded-lg border border-lime-500 bg-white px-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-green-700 focus:ring-2 focus:ring-green-100"
                 />
@@ -321,7 +287,7 @@ export default function DiagnosePage() {
 
               {/* Crop age */}
               <div>
-                <FieldLabel htmlFor="cropAge">Crop age</FieldLabel>
+                <FieldLabel htmlFor="cropAge">{t("diagnose.cropAgeLabel", "Crop age")}</FieldLabel>
                 <div className="flex overflow-hidden rounded-lg border border-lime-500 focus-within:ring-2 focus-within:ring-green-100">
                   <input
                     id="cropAge"
@@ -343,16 +309,16 @@ export default function DiagnosePage() {
                     aria-label="Crop age unit"
                     className="h-10 min-w-[86px] cursor-pointer border-l border-lime-500 bg-lime-500 px-3 text-xs font-medium text-green-950 outline-none"
                   >
-                    <option value="days">days</option>
-                    <option value="months">months</option>
-                    <option value="years">years</option>
+                    <option value="days">{t("diagnose.ageUnitDays", "days")}</option>
+                    <option value="weeks">{t("diagnose.ageUnitWeeks", "weeks")}</option>
+                    <option value="months">{t("diagnose.ageUnitMonths", "months")}</option>
                   </select>
                 </div>
               </div>
 
               {/* Location */}
               <div>
-                <FieldLabel htmlFor="location">Location</FieldLabel>
+                <FieldLabel htmlFor="location">{t("diagnose.locationLabel", "Location")}</FieldLabel>
                 <div className="flex h-11 items-center overflow-hidden rounded-lg border border-green-200 bg-white shadow-[0_2px_4px_rgba(0,0,0,0.12)] focus-within:border-green-600 focus-within:ring-2 focus-within:ring-green-100">
                   <span
                     className="pl-3 text-lg text-green-600"
@@ -377,25 +343,26 @@ export default function DiagnosePage() {
                     onChange={handleChange}
                     required
                     maxLength={200}
-                    placeholder="Village, town or district"
+                    placeholder={t("diagnose.locationPlaceholder", "Village, town or district")}
                     autoComplete="address-level2"
                     className="h-full min-w-0 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-gray-400"
                   />
                 </div>
                 <p className="mt-1.5 text-xs text-gray-500">
-                  Enter your village, town or district.
+                  {t("diagnose.locationPlaceholder", "Enter your village, town or district.")}
                 </p>
               </div>
 
               {/* Soil type */}
               <fieldset>
                 <legend className="mb-2 text-sm font-bold text-gray-900">
-                  Soil Type
+                  {t("diagnose.soilTypeLabel", "Soil Type")}
                 </legend>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {SOIL_TYPES.map((soil) => {
                     const selected = form.soilType === soil;
+                    const soilKey = `diagnose.soil${soil}`;
 
                     return (
                       <button
@@ -415,7 +382,7 @@ export default function DiagnosePage() {
                             : "border-green-100 bg-white text-gray-700 hover:border-green-500 hover:bg-green-50"
                         }`}
                       >
-                        {soil}
+                        {t(soilKey, soil)}
                       </button>
                     );
                   })}
@@ -424,7 +391,7 @@ export default function DiagnosePage() {
 
               {/* Budget */}
               <div>
-                <FieldLabel htmlFor="budget">Budget</FieldLabel>
+                <FieldLabel htmlFor="budget">{t("diagnose.budgetLabel", "Budget")}</FieldLabel>
                 <div className="flex h-10 items-center overflow-hidden rounded-lg border border-lime-500 focus-within:ring-2 focus-within:ring-green-100">
                   <span
                     className="pl-3 text-base"
@@ -442,7 +409,7 @@ export default function DiagnosePage() {
                     value={form.budget}
                     onChange={handleChange}
                     required
-                    placeholder="10000"
+                    placeholder={t("diagnose.budgetPlaceholder", "10000")}
                     className="h-full min-w-0 flex-1 bg-white px-2 text-sm outline-none placeholder:text-gray-400"
                   />
                 </div>
@@ -451,10 +418,10 @@ export default function DiagnosePage() {
               {/* Crop image upload */}
               <section className="pt-1">
                 <h2 className="text-sm font-bold text-gray-900">
-                  Upload Crop Photo
+                  {t("diagnose.uploadPhotoTitle", "Upload Crop Photo")}
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-gray-600">
-                  Take a clear photo of the affected leaf or crop.
+                  {t("diagnose.uploadPhotoSubtitle", "Take a clear photo of the affected leaf or crop.")}
                 </p>
 
                 <input
@@ -534,7 +501,7 @@ export default function DiagnosePage() {
                       >
                         <path d="M9 4 7.5 6H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2.5L15 4H9Zm3 12.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" />
                       </svg>
-                      Take Photo
+                      {t("diagnose.takePhotoBtn", "Take Photo")}
                     </button>
 
                     <button
@@ -551,7 +518,7 @@ export default function DiagnosePage() {
                       >
                         <path d="M12 3a6 6 0 0 0-5.83 4.56A4.5 4.5 0 0 0 6.5 16.5H9v-3H7l5-5 5 5h-2v3h2.5a4.5 4.5 0 0 0 .33-8.94A6 6 0 0 0 12 3Zm-1.5 10.5h3V20h-3v-6.5Z" />
                       </svg>
-                      Upload Photo
+                      {t("diagnose.uploadPhotoBtn", "Upload Photo")}
                     </button>
                   </div>
 
@@ -568,21 +535,21 @@ export default function DiagnosePage() {
                     <span className="text-lg" aria-hidden="true">
                       ☀️
                     </span>
-                    Photo Tips
+                    {t("diagnose.photoGuidelinesTitle", "Photo Tips")}
                   </h3>
 
                   <ul className="mt-2 space-y-1 pl-7 text-xs leading-5 text-gray-800">
                     <li className="list-none">
                       <span className="mr-2 text-green-700">✓</span>
-                      Use good lighting, preferably natural light
+                      {t("diagnose.photoGuideline1", "Use good lighting, preferably natural light")}
                     </li>
                     <li className="list-none">
                       <span className="mr-2 text-green-700">✓</span>
-                      Focus on the affected area
+                      {t("diagnose.photoGuideline2", "Focus on the affected area")}
                     </li>
                     <li className="list-none">
                       <span className="mr-2 text-green-700">✓</span>
-                      Avoid blurry or dark images
+                      {t("diagnose.photoGuideline3", "Avoid blurry or dark images")}
                     </li>
                   </ul>
                 </aside>
@@ -606,7 +573,7 @@ export default function DiagnosePage() {
                   disabled={loading}
                   className="min-h-11 rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Reset form
+                  {t("common.resetFilters", "Reset form")}
                 </button>
 
                 <button
@@ -617,11 +584,11 @@ export default function DiagnosePage() {
                   {loading ? (
                     <>
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                      Analyzing crop...
+                      {t("diagnose.analyzingTitle", "Analyzing crop...")}
                     </>
                   ) : (
                     <>
-                      Submit <span aria-hidden="true">→</span>
+                      {t("diagnose.submitBtn", "Analyze Crop Health")} <span aria-hidden="true">→</span>
                     </>
                   )}
                 </button>

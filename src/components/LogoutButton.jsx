@@ -5,7 +5,7 @@ import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export default function LogoutButton() {
+export default function LogoutButton({ className = "", ...props } = {}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +34,11 @@ export default function LogoutButton() {
       type="button"
       onClick={handleLogout}
       disabled={loading}
-      className="rounded-lg border px-4 py-2 text-sm font-medium disabled:opacity-60"
+      className={
+        className ||
+        "rounded-lg border px-4 py-2 text-sm font-medium disabled:opacity-60"
+      }
+      {...props}
     >
       {loading ? "Logging out..." : "Logout"}
     </button>

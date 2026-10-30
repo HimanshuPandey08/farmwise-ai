@@ -458,7 +458,7 @@ export async function getCommunityIntelligence({
       distinctContributorsCount >= INTELLIGENCE_CONFIG.MIN_CONTRIBUTORS_FOR_PUBLIC_STATS;
 
     signals.push({
-      id: Buffer.from(key).toString("base64url").slice(0, 16),
+      id: `sig::${cluster.area}::${cluster.crop}::${cluster.disease}::${days}`,
       area: cluster.area,
       crop: cluster.crop,
       disease: cluster.disease,

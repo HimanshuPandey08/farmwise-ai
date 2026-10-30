@@ -1,10 +1,11 @@
-
 "use client";
 
 import { Suspense, useSyncExternalStore, useState, useEffect } from "react";
 import ProtectedPage from "@/components/ProtectedPage";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import Navbar from "@/components/Navbar";
+import { useLanguage } from "@/context/LanguageContext";
 
 const STORAGE_KEY = "farmwise-current-report";
 
@@ -30,34 +31,6 @@ function getServerSnapshot() {
   return null;
 }
 
-function SiteHeader() {
-  return (
-    <header className="border-b border-gray-100 bg-white">
-      <div className="mx-auto flex min-h-[66px] max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-green-900 text-2xl text-lime-400">
-            🌱
-          </span>
-          <span className="text-base font-bold tracking-tight text-gray-950">
-            FarmWise AI
-          </span>
-        </Link>
-
-        <nav className="flex items-center gap-4 text-xs font-medium text-gray-800 sm:gap-9 sm:text-sm">
-          <Link href="/" className="transition hover:text-green-700">
-            Home
-          </Link>
-          <Link href="/#about" className="transition hover:text-green-700">
-            About
-          </Link>
-          <Link href="/#contact" className="transition hover:text-green-700">
-            Contact
-          </Link>
-        </nav>
-      </div>
-    </header>
-  );
-}
 
 function PlantMark() {
   return (
@@ -102,7 +75,7 @@ function PlantMark() {
 function GrowingPlantLoader({ message = "Retrieving your saved diagnosis..." }) {
   return (
     <main className="min-h-screen bg-white text-gray-900">
-      <SiteHeader />
+      <Navbar />
 
       <section
         className="flex min-h-[calc(100vh-67px)] flex-col items-center justify-center overflow-hidden px-5 py-12 text-center"
@@ -204,10 +177,10 @@ function getPrimaryFinding(diagnosis) {
   return null;
 }
 
-function getPredictionBadge(disease) {
+function getPredictionBadge(disease, t) {
   if (!disease) {
     return {
-      label: "No prediction returned",
+      label: t ? t("report.noPredictionReturned", "No prediction returned") : "No prediction returned",
       classes: "bg-gray-100 text-gray-700",
     };
   }
@@ -220,13 +193,13 @@ function getPredictionBadge(disease) {
     name.includes("no diseases")
   ) {
     return {
-      label: "Healthy prediction",
+      label: t ? t("report.healthyPrediction", "Healthy prediction") : "Healthy prediction",
       classes: "bg-green-100 text-green-800",
     };
   }
 
   return {
-    label: "Review recommended",
+    label: t ? t("report.reviewRecommended", "Review recommended") : "Review recommended",
     classes: "bg-amber-100 text-amber-900",
   };
 }
@@ -243,6 +216,7 @@ function QuickInfo({ label, value, colorClass }) {
 function ReportContent() {
   const params = useParams();
   const reportId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const { t, language } = useLanguage();
 
   const saved = useSyncExternalStore(
     subscribeToReport,
@@ -256,29 +230,10 @@ function ReportContent() {
   useEffect(() => {
     let ignore = false;
 
-    let sessionParsed = null;
-
-    if (saved) {
-      try {
-        sessionParsed = JSON.parse(saved);
-      } catch {
-        sessionParsed = null;
-      }
-    }
-
-    const matchesSession =
-      sessionParsed &&
-      (sessionParsed.id === reportId ||
-        sessionParsed.diagnosisId === reportId);
-
-    if (matchesSession) {
-      return () => {
-        ignore = true;
-      };
-    }
-
     if (reportId && reportId !== "draft") {
-      fetch(`/api/diagnoses?id=${encodeURIComponent(reportId)}`)
+      fetch(
+        `/api/diagnoses?id=${encodeURIComponent(reportId)}&lang=${encodeURIComponent(language || "en")}`
+      )
         .then((response) => {
           if (!response.ok) {
             throw new Error("Diagnosis not found in your records.");
@@ -309,11 +264,11 @@ function ReportContent() {
     return () => {
       ignore = true;
     };
-  }, [saved, reportId]);
+  }, [reportId, language]);
 
-  let report = null;
+  let report = dbReport;
 
-  if (saved) {
+  if (!report && saved) {
     try {
       const parsed = JSON.parse(saved);
 
@@ -325,37 +280,33 @@ function ReportContent() {
     }
   }
 
-  if (!report && dbReport) {
-    report = dbReport;
-  }
-
   if (!report) {
     if (!dbError && reportId && reportId !== "draft") {
-      return <GrowingPlantLoader />;
+      return <GrowingPlantLoader message={t("report.retrievingDiagnosis", "Retrieving your saved diagnosis...")} />;
     }
 
     return (
       <main className="min-h-screen bg-gray-50">
-        <SiteHeader />
+        <Navbar />
         <div className="mx-auto max-w-2xl px-5 py-16 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">
             🌱
           </div>
 
           <h1 className="mt-5 text-2xl font-extrabold text-gray-950">
-            Report unavailable
+            {t("report.title", "Report unavailable")}
           </h1>
 
           <p role="alert" className="mt-3 text-sm leading-6 text-gray-600">
             {dbError ||
-              "No matching report found. Please submit the diagnosis form first."}
+              t("report.noMatchingReport", "No matching report found. Please submit the diagnosis form first.")}
           </p>
 
           <Link
             href="/diagnose"
             className="mt-6 inline-flex rounded-lg bg-green-800 px-5 py-3 text-sm font-bold text-white transition hover:bg-green-900"
           >
-            Start a new diagnosis →
+            {t("diagnose.submitBtn", "Start a new diagnosis")} →
           </Link>
         </div>
       </main>
@@ -369,35 +320,50 @@ function ReportContent() {
 
   const detectedCrop = diagnosis?.crop;
   const primaryDisease = getPrimaryFinding(diagnosis);
-  const badge = getPredictionBadge(primaryDisease);
+  const badge = getPredictionBadge(primaryDisease, t);
 
+  const localized = report.localized || {};
   const cropName =
-    report.cropName || detectedCrop?.name || "Your crop";
+    localized.cropName || report.cropName || detectedCrop?.name || t("report.yourCrop", "Your crop");
+
+  const primaryDiseaseName =
+    localized.diseaseName ||
+    primaryDisease?.name ||
+    (diagnosis ? t("report.noDiseasePrediction", "No disease prediction") : t("report.diagnosisUnavailable", "Diagnosis unavailable"));
 
   const diagnosisId = report.diagnosisId || report.id || reportId;
 
-  const description = primaryDisease
-    ? `The analysis returned a prediction of ${primaryDisease.name || "a possible crop condition"}. Review the field symptoms before choosing a treatment.`
-    : "No specific disease prediction was returned. Review the crop and field conditions before deciding on treatment.";
+  const description =
+    localized.description ||
+    (primaryDisease
+      ? t(
+          "report.predictionAnalysisText",
+          "The analysis returned a prediction of {disease}. Review the field symptoms before choosing a treatment.",
+          { disease: primaryDiseaseName }
+        )
+      : t(
+          "report.noPredictionAnalysisText",
+          "No specific disease prediction was returned. Review the crop and field conditions before deciding on treatment."
+        ));
 
   return (
     <main className="min-h-screen bg-[#fbfcfa] text-gray-900">
-      <SiteHeader />
+      <Navbar />
 
       <div className="mx-auto max-w-5xl px-5 py-7 sm:px-8 sm:py-9">
         <Link
           href="/diagnose"
           className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 transition hover:text-green-800"
         >
-          <span aria-hidden="true">←</span> Back
+          <span aria-hidden="true">←</span> {t("common.back", "Back")}
         </Link>
 
         <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
-          Crop Analysis
+          {t("report.title", "Crop Diagnosis Report")}
         </h1>
 
         <p className="mt-2 text-sm text-gray-500">
-          Here is the diagnosis based on the crop information and image you submitted.
+          {t("report.subtitle", "AI-assisted disease analysis, confidence score, and management recommendations.")}
         </p>
 
         {/* Main diagnosis card */}
@@ -414,7 +380,7 @@ function ReportContent() {
                 <div className="flex h-56 w-full flex-col items-center justify-center rounded-xl bg-white text-green-800">
                   <PlantMark />
                   <p className="mt-2 text-xs text-gray-500">
-                    Crop image unavailable
+                    {t("report.cropImageUnavailable", "Crop image unavailable")}
                   </p>
                 </div>
               )}
@@ -422,12 +388,11 @@ function ReportContent() {
 
             <div className="flex flex-col justify-center p-6 sm:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-800">
-                Diagnosis result
+                {t("report.diagnosisResult", "Diagnosis result")}
               </p>
 
               <h2 className="mt-2 text-2xl font-extrabold leading-tight text-gray-950">
-                {primaryDisease?.name ||
-                  (diagnosis ? "No disease prediction" : "Diagnosis unavailable")}
+                {primaryDiseaseName}
               </h2>
 
               <p className="mt-1 text-sm font-medium text-gray-600">
@@ -443,7 +408,9 @@ function ReportContent() {
 
                 {typeof primaryDisease?.probability === "number" && (
                   <span className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">
-                    {(primaryDisease.probability * 100).toFixed(1)}% prediction probability
+                    {t("report.predictionProbability", "{percent}% prediction probability", {
+                      percent: (primaryDisease.probability * 100).toFixed(1),
+                    })}
                   </span>
                 )}
               </div>
@@ -457,40 +424,40 @@ function ReportContent() {
 
         {/* Quick information */}
         <section className="mt-5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="text-sm font-bold text-gray-900">Quick Info</h2>
+          <h2 className="text-sm font-bold text-gray-900">{t("report.quickInfo", "Quick Info")}</h2>
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <QuickInfo
-              label="Crop"
+              label={t("report.crop", "Crop")}
               value={cropName}
               colorClass="bg-[#d7e5c5] text-green-950"
             />
 
             <QuickInfo
-              label="Location"
-              value={report.location}
+              label={t("report.location", "Location")}
+              value={report.location || t("report.notSpecified", "Not specified")}
               colorClass="bg-[#ffe3a0] text-amber-900"
             />
 
             <QuickInfo
-              label="Soil type"
-              value={report.soilType}
+              label={t("report.soilType", "Soil type")}
+              value={report.soilType || t("report.notSpecified", "Not specified")}
               colorClass="bg-[#e8d7d2] text-stone-800"
             />
 
             <QuickInfo
-              label="Crop age"
+              label={t("report.cropAge", "Crop age")}
               value={
-                report.cropAge != null
-                  ? `${report.cropAge} ${report.ageUnit || "days"}`
-                  : "Not specified"
+                report.cropAge != null && String(report.cropAge).trim() !== ""
+                  ? `${report.cropAge} ${report.ageUnit || t("report.days", "days")}`
+                  : t("report.notSpecified", "Not specified")
               }
               colorClass="bg-[#d5e6e8] text-teal-950"
             />
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
-            <span className="text-sm text-gray-500">Treatment budget</span>
+            <span className="text-sm text-gray-500">{t("report.treatmentBudget", "Treatment budget")}</span>
             <span className="text-sm font-bold text-gray-900">
               {formatBudget(report.budget)}
             </span>
@@ -500,37 +467,43 @@ function ReportContent() {
         {/* Other predictions */}
         {diseases.length > 1 && (
           <section className="mt-5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold">Other predictions</h2>
+            <h2 className="text-lg font-bold">{t("report.otherPredictions", "Other predictions")}</h2>
 
             <ul className="mt-3 space-y-3">
-              {diseases.slice(1).map((disease, index) => (
-                <li
-                  key={disease.id ?? `${disease.name}-${index}`}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 p-4"
-                >
-                  <span className="text-sm font-semibold">
-                    {disease.name}
-                  </span>
+              {diseases.slice(1).map((disease, index) => {
+                const localizedOtherName =
+                  localized.otherDiseases?.[index] || disease.name;
 
-                  {typeof disease.probability === "number" && (
-                    <span className="shrink-0 text-xs text-gray-500">
-                      {(disease.probability * 100).toFixed(1)}%
+                return (
+                  <li
+                    key={disease.id ?? `${disease.name}-${index}`}
+                    className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 p-4"
+                  >
+                    <span className="text-sm font-semibold">
+                      {localizedOtherName}
                     </span>
-                  )}
-                </li>
-              ))}
+
+                    {typeof disease.probability === "number" && (
+                      <span className="shrink-0 text-xs text-gray-500">
+                        {(disease.probability * 100).toFixed(1)}%
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         )}
 
         <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-bold text-amber-900">
-            Important advisory
+            {t("report.disclaimer", "Important advisory")}
           </p>
-          <p className="mt-1 text-sm leading-6 text-amber-800">
-            AI predictions are estimates, not confirmed diagnoses. Verify field
-            symptoms and consult an agricultural expert before applying chemical
-            treatments.
+          <p className="mt-1 text-xs text-amber-800 leading-relaxed">
+            {t(
+              "report.advisoryNotice",
+              "Informational AI-assisted screening estimate based on visual analysis. Always verify symptoms in field with local agricultural extension officers before applying treatments."
+            )}
           </p>
         </div>
 
@@ -539,21 +512,21 @@ function ReportContent() {
             href="/diagnose"
             className="inline-flex min-h-12 items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
-            New Diagnosis
+            {t("report.newDiagnosis", "New Diagnosis")}
           </Link>
 
           <Link
             href={`/report/${encodeURIComponent(diagnosisId)}/action-plan`}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#8bb96e] px-6 py-3 text-sm font-bold text-green-950 transition hover:bg-[#79a95a] focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
           >
-            View action plan <span aria-hidden="true">→</span>
+            {t("report.viewActionPlan", "View action plan")} <span aria-hidden="true">→</span>
           </Link>
         </div>
       </div>
 
       <footer className="mt-8 border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-5xl px-5 py-5 text-center text-xs text-gray-500 sm:px-8">
-          FarmWise AI · Helping you make informed crop-care decisions.
+          {t("common.footerTagline", "FarmWise AI · Helping you make informed crop-care decisions.")}
         </div>
       </footer>
     </main>

@@ -3,8 +3,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { retrieveWeather } from "@/lib/weather";
-import { retrieveAgriculturalSources } from "@/lib/agricultural-retrieval";
-import { generateGeminiRecommendation } from "@/lib/gemini";
+import {
+  generateGeminiRecommendation,
+  translateConsultationWithGemini,
+} from "@/lib/gemini";
 
 // In-flight generation locks to prevent duplicate concurrent generation for the same diagnosis
 const activeGenerations = new Map();
@@ -27,6 +29,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const diagnosisId = searchParams.get("diagnosisId");
+    const lang = searchParams.get("lang") || request.cookies.get("farmwise_lang")?.value || "en";
 
     if (!diagnosisId || typeof diagnosisId !== "string" || !diagnosisId.trim()) {
       return NextResponse.json(
@@ -47,12 +50,56 @@ export async function GET(request) {
       );
     }
 
+    const canonicalRecommendation = existing.recommendation;
+    let returnRecommendation = canonicalRecommendation;
+    let isTranslated = false;
+
+    if (lang && lang !== "en" && lang !== existing.language) {
+      // 1. Check if cached in MongoDB translations
+      if (existing.translations?.[lang]?.recommendation) {
+        returnRecommendation = existing.translations[lang].recommendation;
+        isTranslated = true;
+      } else {
+        // 2. Generate on-demand translation using translateConsultationWithGemini
+        try {
+          const translated = await translateConsultationWithGemini({
+            recommendation: canonicalRecommendation,
+            targetLanguage: lang,
+            cropName: existing.cropName,
+          });
+
+          // 3. Cache translation safely in MongoDB without mutating original canonical recommendation
+          await db.collection("consultations").updateOne(
+            { diagnosisId: diagnosisId.trim(), userId: session.user.id },
+            {
+              $set: {
+                [`translations.${lang}`]: {
+                  recommendation: translated,
+                  translatedAt: new Date(),
+                },
+                updatedAt: new Date(),
+              },
+            }
+          );
+
+          returnRecommendation = translated;
+          isTranslated = true;
+        } catch (translationErr) {
+          console.warn(`Translation to ${lang} failed, using canonical:`, translationErr.message);
+          returnRecommendation = canonicalRecommendation;
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      consultation: existing.recommendation,
+      consultation: returnRecommendation,
+      canonicalConsultation: canonicalRecommendation,
       weatherContext: existing.weatherContext,
       evidenceSources: existing.agriculturalEvidenceMeta || [],
       isSaved: true,
+      language: lang,
+      isTranslated,
       createdAt: existing.createdAt,
     });
   } catch (error) {
@@ -81,7 +128,8 @@ export async function POST(request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { diagnosisId, regenerate = false } = body;
+    const { diagnosisId, regenerate = false, language } = body;
+    const targetLang = language || request.cookies.get("farmwise_lang")?.value || "en";
 
     if (!diagnosisId || typeof diagnosisId !== "string" || !diagnosisId.trim()) {
       return NextResponse.json(
@@ -123,20 +171,59 @@ export async function POST(request) {
       });
 
       if (existing?.recommendation) {
+        let returnRecommendation = existing.recommendation;
+        let isTranslated = false;
+
+        if (targetLang && targetLang !== "en" && targetLang !== existing.language) {
+          if (existing.translations?.[targetLang]?.recommendation) {
+            returnRecommendation = existing.translations[targetLang].recommendation;
+            isTranslated = true;
+          } else {
+            try {
+              const translated = await translateConsultationWithGemini({
+                recommendation: existing.recommendation,
+                targetLanguage: targetLang,
+                cropName: existing.cropName,
+              });
+
+              await db.collection("consultations").updateOne(
+                { diagnosisId: normalizedDiagnosisId, userId: session.user.id },
+                {
+                  $set: {
+                    [`translations.${targetLang}`]: {
+                      recommendation: translated,
+                      translatedAt: new Date(),
+                    },
+                    updatedAt: new Date(),
+                  },
+                }
+              );
+
+              returnRecommendation = translated;
+              isTranslated = true;
+            } catch (err) {
+              console.warn("Translation failed, falling back to canonical:", err.message);
+            }
+          }
+        }
+
         return NextResponse.json({
           success: true,
-          consultation: existing.recommendation,
+          consultation: returnRecommendation,
+          canonicalConsultation: existing.recommendation,
           weatherContext: existing.weatherContext,
           evidenceSources: existing.agriculturalEvidenceMeta || [],
           isSaved: true,
           cached: true,
+          language: targetLang,
+          isTranslated,
           createdAt: existing.createdAt,
         });
       }
     }
 
     // 3. Concurrency guard: check if generation is already in flight for this diagnosis
-    const lockKey = `${session.user.id}:${normalizedDiagnosisId}`;
+    const lockKey = `${session.user.id}:${normalizedDiagnosisId}:${targetLang}`;
     if (activeGenerations.has(lockKey)) {
       try {
         const inFlightResult = await activeGenerations.get(lockKey);
@@ -171,8 +258,8 @@ export async function POST(request) {
         }),
       ]);
 
-      // 5. Generate recommendations with grounded Gemini engine
-      const recommendation = await generateGeminiRecommendation({
+      // 5. Generate canonical recommendations with grounded Gemini engine in English
+      const canonicalRecommendation = await generateGeminiRecommendation({
         cropName: diagnosisDoc.cropName,
         cropAge: diagnosisDoc.cropAge,
         ageUnit: diagnosisDoc.ageUnit,
@@ -182,14 +269,38 @@ export async function POST(request) {
         diagnosis: diagnosisDoc.diagnosis,
         weather,
         agriculturalEvidence,
+        language: "en",
       });
+
+      let initialTranslations = {};
+      let returnRecommendation = canonicalRecommendation;
+
+      // Translate to target language if non-English requested
+      if (targetLang && targetLang !== "en") {
+        try {
+          const translated = await translateConsultationWithGemini({
+            recommendation: canonicalRecommendation,
+            targetLanguage: targetLang,
+            cropName: diagnosisDoc.cropName,
+          });
+          initialTranslations[targetLang] = {
+            recommendation: translated,
+            translatedAt: new Date(),
+          };
+          returnRecommendation = translated;
+        } catch (trErr) {
+          console.warn("Initial translation failed:", trErr.message);
+        }
+      }
 
       // 6. Persist consultation to MongoDB
       const consultationRecord = {
         userId: session.user.id,
         diagnosisId: normalizedDiagnosisId,
         cropName: diagnosisDoc.cropName,
-        recommendation,
+        language: "en",
+        recommendation: canonicalRecommendation,
+        translations: initialTranslations,
         weatherContext: weather,
         agriculturalEvidenceMeta: (agriculturalEvidence || []).map((ev) => ({
           title: ev.title,
@@ -207,7 +318,7 @@ export async function POST(request) {
         { upsert: true }
       );
 
-      return recommendation;
+      return returnRecommendation;
     })();
 
     activeGenerations.set(lockKey, generationPromise);

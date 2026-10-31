@@ -5,6 +5,9 @@ import { db } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { translateDiagnosisWithGemini } from "@/lib/gemini";
 
+// In-flight diagnosis translation locks to prevent duplicate concurrent Gemini requests
+const activeDiagnosisTranslations = new Map();
+
 export async function POST(request) {
   try {
     const session = await auth.api.getSession({
@@ -124,39 +127,58 @@ export async function GET(request) {
         if (singleDiagnosis.translations?.[lang]) {
           localized = singleDiagnosis.translations[lang];
         } else {
-          try {
-            const primaryDisease =
-              singleDiagnosis.diagnosis?.diseases?.[0]?.name || "Unspecified condition";
-            const otherDiseases = (singleDiagnosis.diagnosis?.diseases || [])
-              .slice(1, 4)
-              .map((d) => d.name);
-            const defaultDesc = `The analysis returned a prediction of ${primaryDisease}. Review the field symptoms before choosing a treatment.`;
+          const lockKey = `${singleDiagnosis._id.toString()}:${lang}`;
+          let translationPromise = activeDiagnosisTranslations.get(lockKey);
 
-            const tr = await translateDiagnosisWithGemini({
-              cropName: singleDiagnosis.cropName,
-              diseaseName: primaryDisease,
-              otherDiseases,
-              description: defaultDesc,
-              targetLanguage: lang,
-            });
+          if (!translationPromise) {
+            translationPromise = (async () => {
+              try {
+                const primaryDisease =
+                  singleDiagnosis.diagnosis?.diseases?.[0]?.name || "Unspecified condition";
+                const otherDiseases = (singleDiagnosis.diagnosis?.diseases || [])
+                  .slice(1, 4)
+                  .map((d) => d.name);
+                const defaultDesc = `The analysis returned a prediction of ${primaryDisease}. Review the field symptoms before choosing a treatment.`;
 
-            await db.collection("diagnoses").updateOne(
-              { _id: singleDiagnosis._id },
-              {
-                $set: {
-                  [`translations.${lang}`]: {
-                    ...tr,
-                    translatedAt: new Date(),
-                  },
-                  updatedAt: new Date(),
-                },
+                const tr = await translateDiagnosisWithGemini({
+                  cropName: singleDiagnosis.cropName,
+                  diseaseName: primaryDisease,
+                  otherDiseases,
+                  description: defaultDesc,
+                  targetLanguage: lang,
+                });
+
+                if (tr && tr.translated !== false) {
+                  await db.collection("diagnoses").updateOne(
+                    { _id: singleDiagnosis._id },
+                    {
+                      $set: {
+                        [`translations.${lang}`]: {
+                          cropName: tr.cropName,
+                          diseaseName: tr.diseaseName,
+                          otherDiseases: tr.otherDiseases,
+                          description: tr.description,
+                          translatedAt: new Date(),
+                        },
+                        updatedAt: new Date(),
+                      },
+                    }
+                  );
+                  return tr;
+                }
+                return null;
+              } catch (trErr) {
+                console.warn(`Diagnosis translation to ${lang} failed:`, trErr.message);
+                return null;
+              } finally {
+                activeDiagnosisTranslations.delete(lockKey);
               }
-            );
+            })();
 
-            localized = tr;
-          } catch (trErr) {
-            console.warn(`Diagnosis translation to ${lang} failed:`, trErr.message);
+            activeDiagnosisTranslations.set(lockKey, translationPromise);
           }
+
+          localized = await translationPromise;
         }
       }
 

@@ -220,11 +220,11 @@ async function runMarketplaceTests() {
     console.log(`   TEST RESULTS: ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY! (100%)       `);
     console.log("================================================================================");
   } finally {
-    await client.close();
+    // Preserving shared client connection for subsequent tests
   }
 }
 
-runMarketplaceTests().catch((err) => {
+runMarketplaceTests().then(() => process.exit(0)).catch((err) => {
   console.error("FATAL TEST FAILURE:", err);
   process.exit(1);
 });

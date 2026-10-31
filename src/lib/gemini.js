@@ -345,7 +345,10 @@ export function validateRecommendation(raw, { diagnosis, weather, agriculturalEv
 /**
  * Executes a Gemini prompt with JSON response enforcement across model fallbacks.
  */
-export async function executeGeminiJsonPrompt(prompt, { models = getGeminiModels(), temperature = 0.2 } = {}) {
+export async function executeGeminiJsonPrompt(
+  prompt,
+  { models = getGeminiModels(), temperature = 0.2, timeoutMs = REQUEST_TIMEOUT_MS } = {}
+) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -361,7 +364,7 @@ export async function executeGeminiJsonPrompt(prompt, { models = getGeminiModels
 
       const response = await fetch(url, {
         method: "POST",
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
         headers: {
           "Content-Type": "application/json",
         },
@@ -384,7 +387,7 @@ export async function executeGeminiJsonPrompt(prompt, { models = getGeminiModels
           try {
             const retryRes = await fetch(url, {
               method: "POST",
-              signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+              signal: AbortSignal.timeout(timeoutMs),
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
@@ -483,6 +486,7 @@ export async function generateGeminiRecommendation({
   agriculturalEvidence = [],
   language = "en",
   models = getGeminiModels(),
+  timeoutMs = 8000,
 }) {
   const prompt = buildRecommendationPrompt({
     cropName,
@@ -639,6 +643,7 @@ export async function translateConsultationWithGemini({
   targetLanguage,
   cropName,
   models = getGeminiModels(),
+  timeoutMs = 8000,
 }) {
   if (!targetLanguage || targetLanguage === "en") {
     return recommendation;
@@ -695,6 +700,7 @@ export async function translateDiagnosisWithGemini({
   description,
   targetLanguage,
   models = getGeminiModels(),
+  timeoutMs = 8000,
 }) {
   if (!targetLanguage || targetLanguage === "en") {
     return {
@@ -714,7 +720,7 @@ export async function translateDiagnosisWithGemini({
   });
 
   try {
-    const parsedJson = await executeGeminiJsonPrompt(prompt, { models, temperature: 0.1 });
+    const parsedJson = await executeGeminiJsonPrompt(prompt, { models, temperature: 0.1, timeoutMs });
 
     return {
       cropName:
@@ -733,6 +739,7 @@ export async function translateDiagnosisWithGemini({
         typeof parsedJson?.description === "string" && parsedJson.description.trim()
           ? parsedJson.description.trim()
           : description,
+      translated: true,
     };
   } catch (err) {
     console.warn("Diagnosis translation failed gracefully:", err.message);
@@ -741,6 +748,7 @@ export async function translateDiagnosisWithGemini({
       diseaseName,
       otherDiseases,
       description,
+      translated: false,
     };
   }
 }

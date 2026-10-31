@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { retrieveWeather } from "@/lib/weather";
+import { retrieveAgriculturalSources } from "@/lib/agricultural-retrieval";
 import {
   generateGeminiRecommendation,
   translateConsultationWithGemini,
